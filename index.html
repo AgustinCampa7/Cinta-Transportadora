@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Cinta Industrial</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; }
+    .card { background: #1e1e1e; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; border: 1px solid #2a2a2a; text-align: center; }
+    h2 { color: #00bcd4; margin-top: 0; }
+    .badge { padding: 10px; border-radius: 8px; font-weight: bold; margin: 15px 0; }
+    .free { background: #2e7d32; }
+    .detected { background: #c62828; }
+    .value { font-size: 2.5rem; font-weight: bold; color: #ffeb3b; }
+    .btn-group { display: flex; gap: 8px; margin: 20px 0; }
+    button { flex: 1; padding: 12px; background: #333; color: white; border: 1px solid #444; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    button:active { background: #00bcd4; color: black; }
+    .slider { width: 100%; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Cinta Transportadora IoT</h2>
+    <div id="netStatus" style="font-size: 0.8rem; color: #aaa;">Conectando a la nube...</div>
+    
+    <div style="margin-top: 15px;">Distancia Actual:</div>
+    <div class="value"><span id="dist">--</span> cm</div>
+    <div id="statusBadge" class="badge free">CINTA MOVIÉNDOSE</div>
+
+    <hr style="border-color: #333; margin: 20px 0;">
+
+    <h3>Ángulo del Servo</h3>
+    <div class="btn-group">
+      <button onclick="setServo(0)">0°</button>
+      <button onclick="setServo(45)">45°</button>
+      <button onclick="setServo(135)">135°</button>
+    </div>
+
+    <h3>Velocidad de Cinta</h3>
+    <input type="range" class="slider" min="80" max="255" value="200" onchange="setVelocidad(this.value)" oninput="document.getElementById('velVal').innerText = this.value">
+    <div>Valor: <span id="velVal">200</span></div>
+  </div>
+
+  <script>
+    const MQTT_HOST = "f121bb7d.ala.us-east-1.emqxsl.com"; 
+    const MQTT_PORT = 8084; // Puerto WebSocket seguro (WSS) en EMQX Cloud
+    const MQTT_USER = "cinta_user";
+    const MQTT_PASS = "Cinta1234";
+
+    const clientID = "WebCinta_" + Math.random().toString(16).substr(2, 8);
+    const client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, clientID);
+
+    client.onConnectionLost = () => { document.getElementById('netStatus').innerText = "🔴 Desconectado"; };
+    client.onMessageArrived = (msg) => {
+      if (msg.destinationName === "cinta/telemetria") {
+        const data = JSON.parse(msg.payloadString);
+        document.getElementById('dist').innerText = data.distancia;
+        const badge = document.getElementById('statusBadge');
+        if (data.objeto) {
+          badge.innerText = "⛔ OBJETO DETECTADO";
+          badge.className = "badge detected";
+        } else {
+          badge.innerText = "▶ CINTA MOVIÉNDOSE";
+          badge.className = "badge free";
+        }
+      }
+    };
+
+    client.connect({
+      onSuccess: () => {
+        document.getElementById('netStatus').innerText = "🟢 Conectado a la Nube";
+        client.subscribe("cinta/telemetria");
+      },
+      onFailure: (e) => { document.getElementById('netStatus').innerText = "🔴 Error: " + e.errorMessage; },
+      userName: MQTT_USER,
+      password: MQTT_PASS,
+      useSSL: true
+    });
+
+    function setServo(pos) {
+      if (client.isConnected()) {
+        const msg = new Paho.MQTT.Message(pos.toString());
+        msg.destinationName = "cinta/servo/set";
+        client.send(msg);
+      }
+    }
+
+    function setVelocidad(vel) {
+      if (client.isConnected()) {
+        const msg = new Paho.MQTT.Message(vel.toString());
+        msg.destinationName = "cinta/velocidad/set";
+        client.send(msg);
+      }
+    }
+  </script>
+</body>
+</html>
