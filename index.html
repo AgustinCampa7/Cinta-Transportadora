@@ -44,7 +44,7 @@
 
   <script>
     const MQTT_HOST = "f121bb7d.ala.us-east-1.emqxsl.com"; 
-    const MQTT_PORT = 8084; // Puerto WebSocket seguro (WSS) en EMQX Cloud
+    const MQTT_PORT = 8084; // Puerto WSS
     const MQTT_USER = "cinta_user";
     const MQTT_PASS = "Cinta1234";
 
@@ -58,7 +58,7 @@
         document.getElementById('dist').innerText = data.distancia;
         const badge = document.getElementById('statusBadge');
         if (data.objeto) {
-          badge.innerText = "⛔ OBJETO DETECTADO";
+          badge.innerText = "⛔ OBJETO DETECTADO (ESPERANDO SELECCIÓN)";
           badge.className = "badge detected";
         } else {
           badge.innerText = "▶ CINTA MOVIÉNDOSE";
@@ -80,17 +80,20 @@
 
     function setServo(pos) {
       if (client.isConnected()) {
-        const msg = new Paho.MQTT.Message(pos.toString());
-        msg.destinationName = "cinta/servo/set";
-        client.send(msg);
+        const message = new Paho.MQTT.Message(String(pos));
+        message.destinationName = "cinta/servo/set";
+        client.send(message);
+        console.log("Enviado ángulo servo: " + pos);
+      } else {
+        alert("No hay conexión con el servidor MQTT");
       }
     }
 
     function setVelocidad(vel) {
       if (client.isConnected()) {
-        const msg = new Paho.MQTT.Message(vel.toString());
-        msg.destinationName = "cinta/velocidad/set";
-        client.send(msg);
+        const message = new Paho.MQTT.Message(String(vel));
+        message.destinationName = "cinta/velocidad/set";
+        client.send(message);
       }
     }
   </script>
