@@ -43,59 +43,57 @@
   </div>
 
   <script>
-    const MQTT_HOST = "f121bb7d.ala.us-east-1.emqxsl.com"; 
-    const MQTT_PORT = 8084; // Puerto WSS
-    const MQTT_USER = "cinta_user";
-    const MQTT_PASS = "Cinta1234";
+  const MQTT_HOST = "f121bb7d.ala.us-east-1.emqxsl.com"; 
+  const MQTT_PORT = 8084;
+  const MQTT_USER = "cinta_user";
+  const MQTT_PASS = "Cinta1234";
 
-    const clientID = "WebCinta_" + Math.random().toString(16).substr(2, 8);
-    const client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, clientID);
+  const clientID = "WebCinta_" + Math.random().toString(16).substr(2, 8);
+  const client = new Paho.MQTT.Client(MQTT_HOST, MQTT_PORT, clientID);
 
-    client.onConnectionLost = () => { document.getElementById('netStatus').innerText = "🔴 Desconectado"; };
-    client.onMessageArrived = (msg) => {
-      if (msg.destinationName === "cinta/telemetria") {
-        const data = JSON.parse(msg.payloadString);
-        document.getElementById('dist').innerText = data.distancia;
-        const badge = document.getElementById('statusBadge');
-        if (data.objeto) {
-          badge.innerText = "⛔ OBJETO DETECTADO (ESPERANDO SELECCIÓN)";
-          badge.className = "badge detected";
-        } else {
-          badge.innerText = "▶ CINTA MOVIÉNDOSE";
-          badge.className = "badge free";
-        }
-      }
-    };
-
-    client.connect({
-      onSuccess: () => {
-        document.getElementById('netStatus').innerText = "🟢 Conectado a la Nube";
-        client.subscribe("cinta/telemetria");
-      },
-      onFailure: (e) => { document.getElementById('netStatus').innerText = "🔴 Error: " + e.errorMessage; },
-      userName: MQTT_USER,
-      password: MQTT_PASS,
-      useSSL: true
-    });
-
-    function setServo(pos) {
-      if (client.isConnected()) {
-        const message = new Paho.MQTT.Message(String(pos));
-        message.destinationName = "cinta/servo/set";
-        client.send(message);
-        console.log("Enviado ángulo servo: " + pos);
+  client.onConnectionLost = () => { document.getElementById('netStatus').innerText = "🔴 Desconectado"; };
+  
+  client.onMessageArrived = (msg) => {
+    if (msg.destinationName === "cinta/estado") {
+      const estado = msg.payloadString;
+      const badge = document.getElementById('statusBadge');
+      
+      if (estado === "DETECTADO") {
+        badge.innerText = "⛔ OBJETO DETECTADO (SELECCIONAR POSICIÓN)";
+        badge.className = "badge detected";
       } else {
-        alert("No hay conexión con el servidor MQTT");
+        badge.innerText = "▶ CINTA MOVIÉNDOSE";
+        badge.className = "badge free";
       }
     }
+  };
 
-    function setVelocidad(vel) {
-      if (client.isConnected()) {
-        const message = new Paho.MQTT.Message(String(vel));
-        message.destinationName = "cinta/velocidad/set";
-        client.send(message);
-      }
+  client.connect({
+    onSuccess: () => {
+      document.getElementById('netStatus').innerText = "🟢 Conectado a la Nube";
+      client.subscribe("cinta/estado");
+    },
+    onFailure: (e) => { document.getElementById('netStatus').innerText = "🔴 Error: " + e.errorMessage; },
+    userName: MQTT_USER,
+    password: MQTT_PASS,
+    useSSL: true
+  });
+
+  function setServo(pos) {
+    if (client.isConnected()) {
+      const message = new Paho.MQTT.Message(String(pos));
+      message.destinationName = "cinta/servo/set";
+      client.send(message);
     }
-  </script>
+  }
+
+  function setVelocidad(vel) {
+    if (client.isConnected()) {
+      const message = new Paho.MQTT.Message(String(vel));
+      message.destinationName = "cinta/velocidad/set";
+      client.send(message);
+    }
+  }
+</script>
 </body>
 </html>
